@@ -6,6 +6,16 @@ public class Matrix3x3{
     matrix = new double[3][3];
   }
 
+  Matrix3x3(double[][] m) {
+    matrix = new double[3][3];
+
+    for(int i = 0; i < m.length; i++) {
+      for(int j = 0; j < m.length; j++) {
+        matrix[i][j] = m[i][j];
+      }
+    }
+  }
+
   public void add(double n, int row, int col) {
     matrix[row][col] = n;
   }
@@ -36,20 +46,14 @@ public class Matrix3x3{
   
 
   public static void main(String[] args) {
-    Matrix3x3 m = new Matrix3x3();
-    m.add(0, 0, 0);
-    m.add(-1, 0, 1);
-    m.add(0, 0, 2);
-    m.add(1, 1, 0);
-    m.add(0, 1, 1);
-    m.add(0, 1, 2);
-    m.add(0, 2, 0);
-    m.add(0, 2, 1);
-    m.add(1, 2, 2);
+    double[][] m = {{1, 0, 0},
+                    {0, 1, 0},
+                    {0, 0, 1}};
+    Matrix3x3 mat = new Matrix3x3(m);
 
     Point2 p = new Point2(2, 1, 1);
 
-    Point2 mp = times(m, p);
+    Point2 mp = times(mat, p);
 
     System.out.println(mp.x);
     System.out.println(mp.y);

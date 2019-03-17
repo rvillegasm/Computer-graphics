@@ -1,0 +1,898 @@
+
+import java.awt.Graphics;
+import java.awt.geom.Line2D;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.awt.Color;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
+import javax.swing.JPanel;
+import javax.swing.JFrame;
+import javax.swing.WindowConstants;
+
+/**
+ * Implementacion del ejercicio propuesto en la clase de computacion grafica
+ * para realizar multiples transformaciones3D a un dibujo
+ *
+ * @version 27/02/2019
+ * @author Luisa Maria Vasquez, Rafael Villegas, Felipe Cortes
+ */
+class CasitaDib extends JPanel implements KeyListener {
+
+    // Dirección archivo txt
+    private static final String FILENAME = "casita.txt";
+    // ArrayList de los puntos inciiales de la figura
+    //private static final ArrayList<Point3> puntos = new ArrayList<>();
+    // ArrayList de tipo Edge que representan als lineas dibujadas
+    private static final ArrayList<Edge3D> edgesCasita = new ArrayList<>();
+
+    private static final ArrayList<Edge3D> edgesDibujados = new ArrayList<>();
+
+    PointT[][] puntos = new PointT[3][4];
+
+    // Variable que define cual tranfromación realizar
+    int op = 0;
+    // Variable que da la direccion de la tranformación
+    int direccion = 0;
+    // Variable para solo leer una vez
+    boolean leido = false;
+    // Distancia del plano
+    double dis = -500;
+    // radio de la camara con respecto al objeto
+    final double radio = 500;
+    // Angulo de la camara
+    double phi = 0;
+    double tetha = 0;
+
+    double xcam = 0;
+    double ycam = 0;
+    double zcam = 100;
+
+    private double factorial(double n) {
+
+        double fact = 1;
+
+        while (n > 0) {
+            fact *= n;
+            n -= 1;
+        }
+
+        return fact;
+    }
+
+    private double permutation(double n, double k) {
+        return factorial(n) / (factorial(k) * factorial(n - k));
+    }
+
+    private double bez(double u, double k, double n) {
+        return permutation(n, k) * Math.pow(u, k) * Math.pow(1 - u, n - k);
+    }
+
+    // public double bezierPoints(double u, double v, PointT[][] points, char var) {
+    //     double p = 0;
+
+    //     if (var == 'x') {
+
+    //         for (int j = 0; j < points.length; j++) {
+    //             for (int k = 0; k < points[0].length; k++) {
+    //                 p += points[j][k].x * bez(u, j, points.length - 1) * bez(v, k, points[0].length - 1);
+    //             }
+    //         }
+    //     } else if (var == 'y') {
+
+    //         for (int j = 0; j < points.length; j++) {
+    //             for (int k = 0; k < points[0].length; k++) {
+    //                 p += points[j][k].y * bez(u, j, points.length - 1) * bez(v, k, points[0].length - 1);
+    //             }
+    //         }
+    //     } else {
+
+    //         for (int j = 0; j < points.length; j++) {
+    //             for (int k = 0; k < points[0].length; k++) {
+    //                 p += points[j][k].z * bez(u, j, points.length - 1) * bez(v, k, points[0].length - 1);
+    //             }
+    //         }
+    //     }
+
+    //     System.out.println(p);
+
+    //     return p;
+    // }
+
+    private Point3 P(double u, double v) {
+        Point3 punto = new Point3(0, 0, 0, 1);
+
+        for(int j = 0; j <= puntos[0].length-1; ++j) {
+            for(int k = 0; k <= puntos.length-1; ++k) {
+                punto.x += (puntos[k][j].x * bez(j, puntos[0].length-1, u) * bez(k, puntos.length-1, v));
+                punto.y += (puntos[k][j].y * bez(j, puntos[0].length-1, u) * bez(k, puntos.length-1, v));
+                punto.z += (puntos[k][j].z * bez(j, puntos[0].length-1, u) * bez(k, puntos.length-1, v));
+            }
+        }
+
+        return punto;
+    }
+
+    private void puntosControl(Graphics2D g2d) {
+        edgesCasita.clear();
+        for(double u = 0; u < 1; u += 0.01) {
+            for(double v = 0; v < 1; v += 0.01) {
+                Point3 p1 = P(u, v);
+                Point3 p2 = P(u+0.025, v+0.025);
+                edgesCasita.add(new Edge3D(p1, p2));
+            }
+        }
+        vistaCamara(g2d);
+    }
+
+    public CasitaDib() {
+        setBackground(Color.WHITE);
+        this.addKeyListener(this);
+        this.setFocusable(true);
+        this.requestFocusInWindow();
+        this.addKeyListener(this);
+
+        puntos[0][0] = new PointT(-150, -100, 1100);
+        puntos[1][0] = new PointT(-150, 0, 1000);
+        puntos[2][0] = new PointT(-150, -100, 900);
+
+        puntos[0][1] = new PointT(-50, 0, 1100);
+        puntos[1][1] = new PointT(-50, 0, 1000);
+        puntos[2][1] = new PointT(-50, 0, 900);
+
+        puntos[0][2] = new PointT(50, 0, 1100);
+        puntos[1][2] = new PointT(50, 0, 1000);
+        puntos[2][2] = new PointT(50, 0, 900);
+
+        puntos[0][3] = new PointT(150, 100, 1100);
+        puntos[1][3] = new PointT(150, 0, 1000);
+        puntos[2][3] = new PointT(150, 100, 900);
+
+    }
+
+    @Override
+    public void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        this.removeAll();
+        Graphics2D g2d = (Graphics2D) g;
+        g2d.setColor(Color.BLACK);
+        // // Determinar origen del plano
+        // int origeny = getHeight() / 2;
+        // int origenx = (getWidth() / 2);
+        // // Dibujar los ejes
+        // Line2D ejey = new Line2D.Double(origenx, 0, origenx, getHeight());
+        // Line2D ejex = new Line2D.Double(0, origeny, getWidth(), origeny);
+        // g2d.draw(ejex);
+        // g2d.draw(ejey);
+        // //La tabal de surf se dibujara en morado
+        g2d.setColor(new Color(172, 4, 172));
+
+        // Leer el archivo de texto
+        // if (!leido) {
+        //     leerArchivo(g2d);
+        //     // this.camara = new Point3(puntos.get(8).x, puntos.get(8).y, radio +
+        //     // puntos.get(8).z, 1);
+        //     // this.camaraOG = camara;
+        //     vistaCamara(g2d);
+        // }
+
+        puntosControl(g2d);
+
+        // Seleccionar que transformacion voy a hacer
+        switch (op) {
+        case 1:
+            transladar(g2d, direccion);
+            break;
+        case 2:
+            rotar(g2d, direccion);
+            break;
+        case 3:
+            escalar(g2d, direccion);
+            break;
+        case 4:
+            planoProyeccion(g2d, direccion);
+            break;
+        case 5:
+            rotarCamara(g2d, direccion);
+            break;
+        default:
+            vistaCamara(g2d);
+            break;
+        }
+
+    }
+
+    public void rotarCamara(Graphics2D g2d, int direccion) {
+
+        switch (direccion) {
+        case 1:
+            this.tetha -= 10;
+            break;
+        case 2:
+            this.tetha += 10;
+            break;
+        case 3:
+            if (this.phi > -79) {
+                this.phi -= 10;
+            } else if (this.phi > -89) {
+                this.phi -= 89 + this.phi;
+            }
+            break;
+        case 4:
+            if (this.phi < 79) {
+                this.phi += 10;
+            } else if (this.phi < 89) {
+                this.phi += (89 - this.phi);
+            }
+            break;
+        default:
+            break;
+        }
+        // Dibujo según la cámara
+        vistaCamara(g2d);
+
+    }
+
+    public void vistaCamara(Graphics2D g2d) {
+        // Genero coordenadas iniciales de la camara
+        int R = 500;
+        double r = R * Math.cos(Math.toRadians(phi));
+        xcam = r * Math.sin(Math.toRadians(tetha));
+        ycam = R * Math.sin(Math.toRadians(phi));
+        zcam = r * Math.cos(Math.toRadians(tetha));
+
+        // Obtengo el centroide del objeto que es a donde mirará la cámara
+        Point3 centroide = centroideSinTrans(g2d);
+
+        // Ubico la cámara cerca al objeto
+        xcam += centroide.x;
+        ycam += centroide.y;
+        zcam += centroide.z;
+
+        // Calculo los vectores correspondientes para generar la matriz
+        Vector3 n = new Vector3(xcam - centroide.x, ycam - centroide.y, zcam - centroide.z);
+        n.Normalize();
+        Vector3 V = new Vector3(0, 1, 0);
+        Vector3 u = Vector3.crossProduct(V, n);
+        u.Normalize();
+        Vector3 v = Vector3.crossProduct(n, u);
+        Vector3 p0 = new Vector3(xcam, ycam, zcam);
+
+        Matrix4x4 trans = new Matrix4x4();
+        trans.matriz[0][0] = u.vector[0];
+        trans.matriz[0][1] = u.vector[1];
+        trans.matriz[0][2] = u.vector[2];
+        trans.matriz[0][3] = -Vector3.dotProduct(u, p0);
+        trans.matriz[1][0] = v.vector[0];
+        trans.matriz[1][1] = v.vector[1];
+        trans.matriz[1][2] = v.vector[2];
+        trans.matriz[1][3] = -Vector3.dotProduct(v, p0);
+        trans.matriz[2][0] = n.vector[0];
+        trans.matriz[2][1] = n.vector[1];
+        trans.matriz[2][2] = n.vector[2];
+        trans.matriz[2][3] = -Vector3.dotProduct(n, p0);
+        trans.matriz[3][3] = 1;
+
+        // Multiplico cada punto por la matriz y lo guardo en edgesDibujados
+        multCam(trans);
+        // Aplico proyección y dibujo
+        dibujar(g2d);
+
+    }
+
+    private void multCam(Matrix4x4 trans) {
+
+        for (Edge3D linea : edgesCasita) {
+
+            Point3 inicio = linea.point1;
+            Point3 fin = linea.point2;
+
+            Point3 inicio1 = Matrix4x4.times(trans, inicio);
+            Point3 fin1 = Matrix4x4.times(trans, fin);
+
+            Point3 a = new Point3(inicio1.x, inicio1.y, inicio1.z, inicio1.w);
+            Point3 b = new Point3(fin1.x, fin1.y, fin1.z, fin1.w);
+
+            edgesDibujados.add(new Edge3D(a, b));
+        }
+    }
+
+    /**
+     * Método que halla el centroide de un objeto pero no lo mueve al origen
+     * 
+     * @return Centroide
+     */
+    private Point3 centroideSinTrans(Graphics2D g2d) {
+        // Variables iniciales para hallar centroide
+        double xMax = Integer.MIN_VALUE;
+        double yMax = Integer.MIN_VALUE;
+        double yMin = Integer.MAX_VALUE;
+        double xMin = Integer.MAX_VALUE;
+        double zMax = Integer.MIN_VALUE;
+        double zMin = Integer.MAX_VALUE;
+        // Recorro cada punto buscando el maximo y minimo de cada variable
+        for (int i = 0; i < edgesCasita.size(); i++) {
+            Edge3D a = edgesCasita.get(i);
+            if (a.point1.x > xMax) {
+                xMax = a.point1.x;
+            }
+            if (a.point2.x > xMax) {
+                xMax = a.point2.x;
+            }
+            if (a.point1.y > yMax) {
+                yMax = a.point1.y;
+            }
+            if (a.point2.y > yMax) {
+                yMax = a.point1.y;
+            }
+            if (a.point1.x < xMin) {
+                xMin = a.point1.x;
+            }
+            if (a.point2.x < xMin) {
+                xMin = a.point2.x;
+            }
+            if (a.point1.y < yMin) {
+                yMin = a.point1.y;
+            }
+            if (a.point2.y < yMin) {
+                yMin = a.point2.y;
+            }
+            if (a.point1.z > zMax) {
+                zMax = a.point1.z;
+            }
+            if (a.point2.z > zMax) {
+                zMax = a.point2.z;
+            }
+            if (a.point1.z < zMin) {
+                zMin = a.point1.z;
+            }
+            if (a.point2.z < zMin) {
+                zMin = a.point2.z;
+            }
+        }
+        // Creo centroide
+        Point3 centroide = new Point3(xMax - ((xMax - xMin) / 2), yMax - ((yMax - yMin) / 2),
+                zMax - ((zMax - zMin) / 2), 1);
+        return centroide;
+    }
+
+    // public void leerArchivo(Graphics2D g2d) {
+
+    //     try (BufferedReader br = new BufferedReader(new FileReader(FILENAME))) {
+    //         String sCurrentLine;
+    //         // Leer cantidad de puntos
+    //         int cpuntos;
+    //         sCurrentLine = br.readLine();
+    //         cpuntos = Integer.parseInt(sCurrentLine);
+    //         // Leer puntos y agregarlos al arreglo
+    //         for (int i = 0; i < cpuntos; i++) {
+    //             sCurrentLine = br.readLine();
+    //             String[] xy = sCurrentLine.split(" ");
+    //             double x = Integer.parseInt(xy[0]);
+    //             double y = Integer.parseInt(xy[1]);
+    //             double z = Integer.parseInt(xy[2]);
+    //             Point3 punto = new Point3(x, y, z, 1);
+    //             puntos.add(punto);
+    //         }
+    //         // Leer cantidad de lineas
+    //         int clineas;
+    //         sCurrentLine = br.readLine();
+    //         clineas = Integer.parseInt(sCurrentLine);
+
+    //         // Leer y dibujar las lineas
+    //         for (int i = 0; i < clineas; i++) {
+    //             sCurrentLine = br.readLine();
+    //             String[] edges = sCurrentLine.split(" ");
+
+    //             // Obtener coordenadas de inicio y fin
+    //             double x1 = puntos.get(Integer.parseInt(edges[0])).x;
+    //             double y1 = puntos.get(Integer.parseInt(edges[0])).y;
+    //             double z1 = puntos.get(Integer.parseInt(edges[0])).z;
+    //             double x2 = puntos.get(Integer.parseInt(edges[1])).x;
+    //             double y2 = puntos.get(Integer.parseInt(edges[1])).y;
+    //             double z2 = puntos.get(Integer.parseInt(edges[1])).z;
+
+    //             // Crear la linea y agregarla al errglo con su respectivo punto de incio y fin
+    //             Point3 a = new Point3(x1, y1, z1, 1);
+    //             Point3 b = new Point3(x2, y2, z2, 1);
+    //             Edge3D edge = new Edge3D(a, b);
+    //             edgesCasita.add(edge);
+
+    //         }
+
+    //     } catch (IOException e) {
+    //         e.printStackTrace();
+    //     }
+    //     leido = true;
+    // }
+
+    public void transladar(Graphics2D g2d, int dir) {
+        // Creo matriz de tranformacion
+        Matrix4x4 trans = new Matrix4x4();
+        trans.matriz[0][0] = 1;
+        trans.matriz[1][1] = 1;
+        trans.matriz[2][2] = 1;
+        trans.matriz[3][3] = 1;
+
+        // Asigno valores segun dirección de tranformación
+        switch (dir) {
+        case 1:
+            // Derecha
+            trans.matriz[0][3] = 10;
+            trans.matriz[1][3] = 0;
+            trans.matriz[2][3] = 0;
+            break;
+        case 2:
+            // Izquierda
+            trans.matriz[0][3] = -10;
+            trans.matriz[1][3] = 0;
+            trans.matriz[2][3] = 0;
+            break;
+        case 3:
+            // Arriba
+            trans.matriz[0][3] = 0;
+            trans.matriz[1][3] = 10;
+            trans.matriz[2][3] = 0;
+            break;
+        case 4:
+            // Abajo
+            trans.matriz[0][3] = 0;
+            trans.matriz[1][3] = -10;
+            trans.matriz[2][3] = 0;
+            break;
+        case 5:
+            // Alejar
+            trans.matriz[0][3] = 0;
+            trans.matriz[1][3] = 0;
+            trans.matriz[2][3] = -10;
+            break;
+        case 6:
+            // Acercar
+            trans.matriz[0][3] = 0;
+            trans.matriz[1][3] = 0;
+            trans.matriz[2][3] = 10;
+            break;
+        }
+        // Llamo metodo que multiplica cada punto por la matriz
+        mult(trans);
+        // Dibujo la figura resultante
+        vistaCamara(g2d);
+    }
+
+    public void rotar(Graphics2D g2d, int dir) {
+        // Paso angulo a radianes
+        double angle = Math.toRadians(10);
+        Matrix4x4 trans = new Matrix4x4();
+        // Creo matriz correspondiente
+        switch (dir) {
+        case 1:
+            // Rotacion X anti clockwise
+            trans.matriz[0][0] = 1;
+            trans.matriz[1][1] = Math.cos(angle);
+            trans.matriz[1][2] = -Math.sin(angle);
+            trans.matriz[2][2] = Math.cos(angle);
+            trans.matriz[2][1] = Math.sin(angle);
+            trans.matriz[3][3] = 1;
+            break;
+        case 2:
+            // Rotacion X clockwise
+            trans.matriz[0][0] = 1;
+            trans.matriz[1][1] = Math.cos(angle);
+            trans.matriz[1][2] = Math.sin(angle);
+            trans.matriz[2][2] = Math.cos(angle);
+            trans.matriz[2][1] = -Math.sin(angle);
+            trans.matriz[3][3] = 1;
+            break;
+
+        case 3:
+            // Rotacion anti-clockwise Eje Y
+            trans.matriz[1][1] = 1;
+            trans.matriz[0][0] = Math.cos(angle);
+            trans.matriz[2][0] = -Math.sin(angle);
+            trans.matriz[2][2] = Math.cos(angle);
+            trans.matriz[0][2] = Math.sin(angle);
+            trans.matriz[3][3] = 1;
+            break;
+
+        case 4:
+            // Rotacion clockwise Eje Y
+            trans.matriz[1][1] = 1;
+            trans.matriz[0][0] = Math.cos(angle);
+            trans.matriz[2][0] = Math.sin(angle);
+            trans.matriz[2][2] = Math.cos(angle);
+            trans.matriz[0][2] = -Math.sin(angle);
+            trans.matriz[3][3] = 1;
+            break;
+        case 5:
+            // Rotacion anti- clockwise Z
+            trans.matriz[2][2] = 1;
+            trans.matriz[0][0] = Math.cos(angle);
+            trans.matriz[0][1] = -Math.sin(angle);
+            trans.matriz[1][1] = Math.cos(angle);
+            trans.matriz[1][0] = Math.sin(angle);
+            trans.matriz[3][3] = 1;
+            break;
+        case 6:
+            // Rotacion clockwise Z
+            trans.matriz[2][2] = 1;
+            trans.matriz[0][0] = Math.cos(angle);
+            trans.matriz[0][1] = Math.sin(angle);
+            trans.matriz[1][1] = Math.cos(angle);
+            trans.matriz[1][0] = -Math.sin(angle);
+            trans.matriz[3][3] = 1;
+            break;
+        }
+        // Hallo centroide y muevo la figura al centro
+        Point3 centroide = centroide(g2d);
+        // Hago la multpkicaicond ematrices, rotando la figura
+        mult(trans);
+        // Devuelvo la figura a su posicion original
+        volverOriginal(g2d, centroide);
+        // Dibujo la figura resultante
+        vistaCamara(g2d);
+    }
+
+    public void escalar(Graphics2D g2d, int dir) {
+        // Creo matriz de tranformacion
+        Matrix4x4 trans = new Matrix4x4();
+        trans.matriz[3][3] = 1;
+        // Asigno valores a la matriz segun la direccion
+        switch (dir) {
+        case 1:
+            // Agrandar x
+            trans.matriz[0][0] = 1.1;
+            trans.matriz[1][1] = 1;
+            trans.matriz[2][2] = 1;
+            break;
+        case 2:
+            // Encoger X
+            trans.matriz[0][0] = 0.9;
+            trans.matriz[1][1] = 1;
+            trans.matriz[2][2] = 1;
+            break;
+        case 3:
+            // Agrandar Y
+            trans.matriz[0][0] = 1;
+            trans.matriz[1][1] = 1.1;
+            trans.matriz[2][2] = 1;
+            break;
+        case 4:
+            // Encoger Y
+            trans.matriz[0][0] = 1;
+            trans.matriz[1][1] = 0.9;
+            trans.matriz[2][2] = 1;
+            break;
+        case 5:
+            // Agrandar Z
+            trans.matriz[0][0] = 1;
+            trans.matriz[1][1] = 1;
+            trans.matriz[2][2] = 1.1;
+            break;
+        case 6:
+            // Encoger Z
+            trans.matriz[0][0] = 1;
+            trans.matriz[1][1] = 1;
+            trans.matriz[2][2] = 0.9;
+            break;
+
+        }
+
+        // Hallo centroide y muevo la figura al centro
+        Point3 centroide = centroide(g2d);
+        // Hago la multpkicaicond ematrices, rotando la figura
+        mult(trans);
+        // Devuelvo la figura a su posicion original
+        volverOriginal(g2d, centroide);
+        // Dibujo la figura resultante desde el punto de vista de la cámara
+        vistaCamara(g2d);
+    }
+
+    private Point3 centroide(Graphics2D g2d) {
+        // Variables iniciales para hallar centroide
+        double xMax = Integer.MIN_VALUE;
+        double yMax = Integer.MIN_VALUE;
+        double yMin = Integer.MAX_VALUE;
+        double xMin = Integer.MAX_VALUE;
+        double zMax = Integer.MIN_VALUE;
+        double zMin = Integer.MAX_VALUE;
+        // Recorro cada punto buscando el maximo y minimo de cada variable
+        for (int i = 0; i < edgesCasita.size(); i++) {
+            Edge3D a = edgesCasita.get(i);
+            if (a.point1.x > xMax) {
+                xMax = a.point1.x;
+            }
+            if (a.point2.x > xMax) {
+                xMax = a.point2.x;
+            }
+            if (a.point1.y > yMax) {
+                yMax = a.point1.y;
+            }
+            if (a.point2.y > yMax) {
+                yMax = a.point1.y;
+            }
+            if (a.point1.x < xMin) {
+                xMin = a.point1.x;
+            }
+            if (a.point2.x < xMin) {
+                xMin = a.point2.x;
+            }
+            if (a.point1.y < yMin) {
+                yMin = a.point1.y;
+            }
+            if (a.point2.y < yMin) {
+                yMin = a.point2.y;
+            }
+            if (a.point1.z > zMax) {
+                zMax = a.point1.z;
+            }
+            if (a.point2.z > zMax) {
+                zMax = a.point2.z;
+            }
+            if (a.point1.z < zMin) {
+                zMin = a.point1.z;
+            }
+            if (a.point2.z < zMin) {
+                zMin = a.point2.z;
+            }
+        }
+        // Creo centroide
+        Point3 centroide = new Point3(xMax - ((xMax - xMin) / 2), yMax - ((yMax - yMin) / 2),
+                zMax - ((zMax - zMin) / 2), 1);
+        // Creo matriz de translacion hacia el centro
+        Matrix4x4 trans = new Matrix4x4();
+        trans.matriz[0][0] = 1;
+        trans.matriz[1][1] = 1;
+        trans.matriz[2][2] = 1;
+        trans.matriz[3][3] = 1;
+        trans.matriz[0][3] = -centroide.x;
+        trans.matriz[1][3] = -centroide.y;
+        trans.matriz[2][3] = -centroide.z;
+        // Realizo la multiplicaiconde la matriz por cada punto
+        mult(trans);
+        return centroide;
+    }
+
+    private void volverOriginal(Graphics2D g2d, Point3 centroide) {
+        // Creo matriz de translación
+        Matrix4x4 trans = new Matrix4x4();
+        trans.matriz[0][0] = 1;
+        trans.matriz[1][1] = 1;
+        trans.matriz[2][2] = 1;
+        trans.matriz[3][3] = 1;
+        trans.matriz[0][3] = centroide.x;
+        trans.matriz[1][3] = centroide.y;
+        trans.matriz[2][3] = centroide.z;
+        // Desplazo la figura a donde se encontraba
+        mult(trans);
+    }
+
+    private void planoProyeccion(Graphics2D g2d, int dir) {
+        // Cambio dir segun direccion (acercar o alejar)
+        switch (dir) {
+        case 1:
+            dis += 20;
+            break;
+        case 2:
+            dis -= 20;
+        }
+        // Dibujo resultado
+        vistaCamara(g2d);
+    }
+
+    private void dibujar(Graphics2D g2d) {
+        // Creo matriz de transformación para perspectiva
+        Matrix4x4 mat = new Matrix4x4();
+        mat.matriz[0][0] = 1;
+        mat.matriz[1][1] = 1;
+        mat.matriz[2][2] = 1;
+        double val = 1 / dis;
+        mat.matriz[3][2] = val;
+
+        // Aplico perspectiva a cada punto a dibujar
+        for (Edge3D edge : edgesDibujados) {
+            // Obtengo puntos
+            Point3 a = edge.point1;
+            Point3 b = edge.point2;
+            // Los multiplico por la matriz
+            Point3 a1 = Matrix4x4.times(mat, a);
+            Point3 b1 = Matrix4x4.times(mat, b);
+            // Los normalizo
+            a1.normalize();
+            b1.normalize();
+            // Los asigno a una linea
+            Line2D line = new Line2D.Double(a1.x, a1.y, b1.x, b1.y);
+            // Llamo al metodo que los dibuja con coordenadas del panel
+            setCoordinates(line, g2d);
+        }
+        // Vacío las lineas dibujadas ya que cambiarán en la sig transformación
+        edgesDibujados.clear();
+    }
+
+    @Override
+    public void keyTyped(KeyEvent e) {
+        // throw new UnsupportedOperationException("Not supported yet."); //To change
+        // body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public void keyPressed(KeyEvent e) {
+        int tecla = e.getKeyCode();
+        // Determina que operacion hacer y en que dirección
+        switch (tecla) {
+        case KeyEvent.VK_UP:
+            // Translacion arriba
+            op = 1;
+            direccion = 3;
+            break;
+        case KeyEvent.VK_DOWN:
+            // Translacion abajo
+            op = 1;
+            direccion = 4;
+            break;
+        case KeyEvent.VK_RIGHT:
+            // Translacion derecha
+            op = 1;
+            direccion = 1;
+            break;
+        case KeyEvent.VK_LEFT:
+            // Translacion izquierda
+            op = 1;
+            direccion = 2;
+            break;
+        case KeyEvent.VK_N:
+            // Translacion Atras
+            op = 1;
+            direccion = 5;
+            break;
+        case KeyEvent.VK_M:
+            // Translacion Adelante
+            op = 1;
+            direccion = 6;
+            break;
+        case KeyEvent.VK_A:
+            // Rotacion anti-clockwise Eje X
+            op = 2;
+            direccion = 1;
+            break;
+        case KeyEvent.VK_D:
+            // Rotacion clockwise Eje X
+            op = 2;
+            direccion = 2;
+            break;
+        case KeyEvent.VK_W:
+            // Rotacion anti-clockwise Eje Y
+            op = 2;
+            direccion = 3;
+            break;
+        case KeyEvent.VK_S:
+            // Rotación clockwisse Eje Y
+            op = 2;
+            direccion = 4;
+            break;
+        case KeyEvent.VK_Q:
+            // Rotación anti-clockwisse Eje Z
+            op = 2;
+            direccion = 5;
+            break;
+        case KeyEvent.VK_E:
+            // Rotación clockwise Eje Z
+            op = 2;
+            direccion = 6;
+            break;
+        case KeyEvent.VK_J:
+            // Agrandamiento X
+            op = 3;
+            direccion = 1;
+            break;
+        case KeyEvent.VK_L:
+            // Encogimiento X
+            op = 3;
+            direccion = 2;
+            break;
+        case KeyEvent.VK_I:
+            // Agrandamiento Y
+            op = 3;
+            direccion = 3;
+            break;
+        case KeyEvent.VK_K:
+            // Encogimiento Y
+            op = 3;
+            direccion = 4;
+            break;
+        case KeyEvent.VK_O:
+            // Agrandamiento Z
+            op = 3;
+            direccion = 5;
+            break;
+        case KeyEvent.VK_U:
+            // Encogimiento Z
+            op = 3;
+            direccion = 6;
+            break;
+        case KeyEvent.VK_H:
+            // Alejar plano de proyección
+            op = 4;
+            direccion = 1;
+            break;
+        case KeyEvent.VK_G:
+            // Acercar plano de proyeccion
+            op = 4;
+            direccion = 2;
+            break;
+        case KeyEvent.VK_5:
+            // Mover camara hacia polo norte
+            op = 5;
+            direccion = 4;
+            break;
+        case KeyEvent.VK_T:
+            // Mover camara hacia polo sur
+            op = 5;
+            direccion = 3;
+            break;
+        case KeyEvent.VK_Y:
+            // Mover hacia el este
+            op = 5;
+            direccion = 2;
+            break;
+        case KeyEvent.VK_R:
+            // Mover hacia el oeste
+            op = 5;
+            direccion = 1;
+            break;
+        default:
+            break;
+        }
+        repaint();
+    }
+
+    @Override
+    public void keyReleased(KeyEvent e) {
+        // throw new UnsupportedOperationException("Not supported yet."); //To change
+        // body of generated methods, choose Tools | Templates.
+
+    }
+
+    public static void main(String[] args) {
+        JFrame f = new JFrame();
+        f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        f.setTitle("Tabla");
+        CasitaDib dib = new CasitaDib();
+        f.add(dib);
+        f.setSize(1000, 1000);
+        f.setLocationRelativeTo(null);
+        f.setVisible(true);
+    }
+
+    private void setCoordinates(Line2D linea, Graphics2D g2d) {
+        // Método que convierte a coordenadas del panel
+        int origeny = getHeight() / 2;
+        int origenx = (getWidth() / 2);
+        double x1 = linea.getX1() + origenx;
+        double y1 = origeny - linea.getY1();
+        double x2 = linea.getX2() + origenx;
+        double y2 = origeny - linea.getY2();
+        linea.setLine(x1, y1, x2, y2);
+        g2d.draw(linea);
+    }
+
+    private void mult(Matrix4x4 trans) {
+        // Método que multiplica cada punto del dibujo por una matriz
+        for (Edge3D lineae : edgesCasita) {
+            // Obtengo puntos de inicio y fin de cada punto
+            Point3 in = lineae.point1;
+            Point3 fin = lineae.point2;
+
+            // Multiplico los puntos por matriz
+            Point3 in1 = Matrix4x4.times(trans, in);
+            Point3 fin1 = Matrix4x4.times(trans, fin);
+
+            // Asigno los nuevos puntos al arreglo
+            lineae.point1 = new Point3(in1.x, in1.y, in1.z, in1.w);
+            lineae.point2 = new Point3(fin1.x, fin1.y, fin1.z, fin1.w);
+        }
+    }
+}
