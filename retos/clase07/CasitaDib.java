@@ -32,7 +32,26 @@ class CasitaDib extends JPanel implements KeyListener {
 
     private static final ArrayList<Edge3D> edgesDibujados = new ArrayList<>();
 
-    PointT[][] puntos = new PointT[3][4];
+    Point3[][] puntos = { 
+        { 
+            new Point3(-150.0, -100.0, 1100.0, 1),
+            new Point3(-50.0, 0.0, 1100.0, 1),
+            new Point3(50.0, 0.0, 1100.0, 1),
+            new Point3(150.0, 100.0, 1100.0, 1),
+        },
+        {
+            new Point3(-150.0, 0.0, 1000.0, 1),
+            new Point3(-50.0, 0.0, 1000.0, 1),
+            new Point3(50.0, 0.0, 1000.0, 1),
+            new Point3(150.0, 0.0, 1000.0, 1)
+        },
+        {
+            new Point3(-150.0, -100.0, 900.0, 1),
+            new Point3(-50.0, 0.0, 900.0, 1),
+            new Point3(50.0, 0.0, 900.0, 1),
+            new Point3(150.0, 100.0, 900.0, 1)
+        }
+    };
 
     // Variable que define cual tranfromación realizar
     int op = 0;
@@ -68,7 +87,7 @@ class CasitaDib extends JPanel implements KeyListener {
         return factorial(n) / (factorial(k) * factorial(n - k));
     }
 
-    private double bez(double u, double k, double n) {
+    private double bez(double u, int k, int n) {
         return permutation(n, k) * Math.pow(u, k) * Math.pow(1 - u, n - k);
     }
 
@@ -108,9 +127,9 @@ class CasitaDib extends JPanel implements KeyListener {
 
         for(int j = 0; j <= puntos[0].length-1; ++j) {
             for(int k = 0; k <= puntos.length-1; ++k) {
-                punto.x += (puntos[k][j].x * bez(j, puntos[0].length-1, u) * bez(k, puntos.length-1, v));
-                punto.y += (puntos[k][j].y * bez(j, puntos[0].length-1, u) * bez(k, puntos.length-1, v));
-                punto.z += (puntos[k][j].z * bez(j, puntos[0].length-1, u) * bez(k, puntos.length-1, v));
+                punto.x += (puntos[k][j].x * bez(u, j, puntos[0].length-1) * bez(v, k, puntos.length-1));
+                punto.y += (puntos[k][j].y * bez(u, j, puntos[0].length-1) * bez(v, k, puntos.length-1));
+                punto.z += (puntos[k][j].z * bez(u, j, puntos[0].length-1) * bez(v, k, puntos.length-1));
             }
         }
 
@@ -123,10 +142,11 @@ class CasitaDib extends JPanel implements KeyListener {
             for(double v = 0; v < 1; v += 0.01) {
                 Point3 p1 = P(u, v);
                 Point3 p2 = P(u+0.025, v+0.025);
+                //System.out.println(p1.x);
                 edgesCasita.add(new Edge3D(p1, p2));
             }
         }
-        vistaCamara(g2d);
+        dibujar(g2d);
     }
 
     public CasitaDib() {
@@ -136,21 +156,21 @@ class CasitaDib extends JPanel implements KeyListener {
         this.requestFocusInWindow();
         this.addKeyListener(this);
 
-        puntos[0][0] = new PointT(-150, -100, 1100);
-        puntos[1][0] = new PointT(-150, 0, 1000);
-        puntos[2][0] = new PointT(-150, -100, 900);
+        // puntos[0][0] = new PointT(-150, -100, 1100);
+        // puntos[1][0] = new PointT(-150, 0, 1000);
+        // puntos[2][0] = new PointT(-150, -100, 900);
 
-        puntos[0][1] = new PointT(-50, 0, 1100);
-        puntos[1][1] = new PointT(-50, 0, 1000);
-        puntos[2][1] = new PointT(-50, 0, 900);
+        // puntos[0][1] = new PointT(-50, 0, 1100);
+        // puntos[1][1] = new PointT(-50, 0, 1000);
+        // puntos[2][1] = new PointT(-50, 0, 900);
 
-        puntos[0][2] = new PointT(50, 0, 1100);
-        puntos[1][2] = new PointT(50, 0, 1000);
-        puntos[2][2] = new PointT(50, 0, 900);
+        // puntos[0][2] = new PointT(50, 0, 1100);
+        // puntos[1][2] = new PointT(50, 0, 1000);
+        // puntos[2][2] = new PointT(50, 0, 900);
 
-        puntos[0][3] = new PointT(150, 100, 1100);
-        puntos[1][3] = new PointT(150, 0, 1000);
-        puntos[2][3] = new PointT(150, 100, 900);
+        // puntos[0][3] = new PointT(150, 100, 1100);
+        // puntos[1][3] = new PointT(150, 0, 1000);
+        // puntos[2][3] = new PointT(150, 100, 900);
 
     }
 
@@ -180,6 +200,7 @@ class CasitaDib extends JPanel implements KeyListener {
         //     vistaCamara(g2d);
         // }
 
+        //printPuntos();
         puntosControl(g2d);
 
         // Seleccionar que transformacion voy a hacer
@@ -204,6 +225,16 @@ class CasitaDib extends JPanel implements KeyListener {
             break;
         }
 
+    }
+
+    public void printPuntos() {
+        for(Point3[] arrp : puntos) {
+            for(Point3 p : arrp) {
+                System.out.println(p.x);
+                System.out.println(p.y);
+                System.out.println(p.z);
+            }
+        }
     }
 
     public void rotarCamara(Graphics2D g2d, int direccion) {
@@ -458,7 +489,14 @@ class CasitaDib extends JPanel implements KeyListener {
             break;
         }
         // Llamo metodo que multiplica cada punto por la matriz
-        mult(trans);
+        for(int i = 0; i < puntos.length; ++i){
+            for(int j = 0; j < puntos[0].length; ++j){
+                Point3 punto = Matrix4x4.times(trans, new Point3(puntos[i][j].x, puntos[i][j].y, puntos[i][j].z, 1));
+                puntos[i][j].x = punto.x;
+                puntos[i][j].y = punto.y;
+                puntos[i][j].z = punto.z;
+            }
+        }
         // Dibujo la figura resultante
         vistaCamara(g2d);
     }
@@ -529,7 +567,14 @@ class CasitaDib extends JPanel implements KeyListener {
         // Hallo centroide y muevo la figura al centro
         Point3 centroide = centroide(g2d);
         // Hago la multpkicaicond ematrices, rotando la figura
-        mult(trans);
+        for(int i = 0; i < puntos.length; ++i){
+            for(int j = 0; j < puntos[0].length; ++j){
+                Point3 punto = Matrix4x4.times(trans, new Point3(puntos[i][j].x, puntos[i][j].y, puntos[i][j].z, 1));
+                puntos[i][j].x = punto.x;
+                puntos[i][j].y = punto.y;
+                puntos[i][j].z = punto.z;
+            }
+        }
         // Devuelvo la figura a su posicion original
         volverOriginal(g2d, centroide);
         // Dibujo la figura resultante
@@ -584,7 +629,14 @@ class CasitaDib extends JPanel implements KeyListener {
         // Hallo centroide y muevo la figura al centro
         Point3 centroide = centroide(g2d);
         // Hago la multpkicaicond ematrices, rotando la figura
-        mult(trans);
+        for(int i = 0; i < puntos.length; ++i){
+            for(int j = 0; j < puntos[0].length; ++j){
+                Point3 punto = Matrix4x4.times(trans, new Point3(puntos[i][j].x, puntos[i][j].y, puntos[i][j].z, 1));
+                puntos[i][j].x = punto.x;
+                puntos[i][j].y = punto.y;
+                puntos[i][j].z = punto.z; 
+            }
+        }
         // Devuelvo la figura a su posicion original
         volverOriginal(g2d, centroide);
         // Dibujo la figura resultante desde el punto de vista de la cámara
