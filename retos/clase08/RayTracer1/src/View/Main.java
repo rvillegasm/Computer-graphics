@@ -66,7 +66,7 @@ public class Main extends JPanel implements KeyListener {
         double Kd = .8;        // difuse
         double Ks = .7;          // specular
         int n = 32;
-        Colour color = new Colour(0, 1, 1);     // object's color
+        Colour color = new Colour(1, 0, 1);     // object's color
         double Ko = 1;          // Weight of this object's color
         double Kr = 0;          // Weight of the reflected color
         double Kt = 0;          // Weight of the refracted color
@@ -83,7 +83,7 @@ public class Main extends JPanel implements KeyListener {
         super.paintComponent(g);
         
         Scene.clearPointLights();
-        PointLight pl1 = new PointLight(new Point(l1x, l1y, l1z), new Colour(1, 0, 1));
+        PointLight pl1 = new PointLight(new Point(l1x, l1y, l1z), new Colour(1, 1, 1));
         // PointLight pl2 = new PointLight(new Point(l1x+200, l1y, 0), new Colour(1, 0, 1));
         // PointLight pl3 = new PointLight(new Point(l1x, l1y+400, 0), new Colour(0, 0, 1));
         // PointLight pl4 = new PointLight(new Point(0, l1y, 0), new Colour(0, 1, 0));
